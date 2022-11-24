@@ -22,7 +22,8 @@ const char potPIN =  A0;
 const char* ssid = SECRET_SSID;
 const char* password = SECRET_PASS;
 const char mqtt_server[] = "192.168.29.250";
-const char publishTopic[] = "v1/devices/me/telemetry";
+const char subscribeTopic[] = "cmnd/catfeeder/POWER";
+const char publishTopic[] = "stat/catfeeder/POWER";
 
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
@@ -42,11 +43,17 @@ void setup_wifi() {
   Serial.println(WiFi.localIP());
 }
 
+void setup_mqtt(){
+  mqtt.setServer(mqtt_server, 1883);
+  mqtt.setCallback(callback);//Déclaration de la fonction de souscription
+  reconnect();
+}
+
 void reconnect() {
   while (!mqtt.connected()) {
     Serial.print("Attempting MQTT connection .... ");
     if (mqtt.connect(DEVICEID, MQTTUSER, MQTTPASS)) {
-      Serial.print(" CONNECTED");
+      Serial.println(" CONNECTED");
       digitalWrite(LED_BUILTIN, HIGH);
     }else{
       Serial.print(" FAILED to connect to MQTT broker, rc=");
@@ -56,9 +63,13 @@ void reconnect() {
       delay(5000);
     }
   }
+  mqtt.subscribe(subscribeTopic);
 }
 
-void runMotor(int timeToRun){
+void runMotor(){
+  int sensorValue = analogRead(potPIN);
+  int timeToRun = sensorValue * 10;
+
   digitalWrite(2, HIGH);
   Serial.print("motorRun - ");
   Serial.print(timeToRun);
@@ -69,7 +80,6 @@ void runMotor(int timeToRun){
   digitalWrite(2, LOW);
 }
 
-
 void setup() {
   //init serial connection
   Serial.begin(9600);
@@ -78,7 +88,7 @@ void setup() {
   Serial.println(" Cat Feeder V2 ");
   Serial.println("---------------");
   setup_wifi();
-  mqtt.setServer(mqtt_server, 1883);
+  setup_mqtt();
   //init pin mode
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(relayPin, OUTPUT);
@@ -86,6 +96,14 @@ void setup() {
   pinMode(buttonPin, INPUT_PULLUP);   
 }
 
+void callback(char *topic, byte *payload, unsigned int length) {
+  Serial.print("- mqtt msg - ");
+  Serial.print(topic);
+  Serial.println(" -");
+  if(topic == "cmnd/catfeeder/POWER" /*&& (char) payload == 'ON'*/){
+    runMotor();
+  }
+}
 
 void loop() {
   if (!mqtt.connected()) {
@@ -95,16 +113,12 @@ void loop() {
   //mqtt.subscribe()
   // check if the pushbutton is pressed. If it is, the buttonState is HIGH:
   if (digitalRead(buttonPin) == LOW) {
-    int sensorValue = analogRead(potPIN);
-    int timeToRun = sensorValue * 10;
-    runMotor(timeToRun);
+    runMotor();
   }
-
-
   //test here
-  Serial.println(digitalRead(buttonPin));
+  //Serial.println(digitalRead(buttonPin));
   //mqtt.publish(publishTopic, payload);
-  Serial.print("potar ");
-  Serial.println(analogRead(potPIN));
-  delay(1000);
+  //Serial.print("potar ");
+  //Serial.println(analogRead(potPIN));
+  delay(500);
 }
