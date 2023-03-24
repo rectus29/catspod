@@ -17,7 +17,10 @@ static char payload[256];
 
 
 const int buttonPin = 7;     
-const int relayPin =  8;     
+const int relayPin =  8;
+const int wifiLEDPin =  9;
+const int powerLEDPin =  10;
+const int mqttLEDPin =  11;
 const char potPIN =  A0;   
 const char* ssid = SECRET_SSID;
 const char* password = SECRET_PASS;
@@ -39,6 +42,7 @@ void setup_wifi() {
     Serial.print(".");
   }
   Serial.println(" CONNECTED");
+  digitalWrite(wifiLEDPin, HIGH);
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 }
@@ -54,12 +58,12 @@ void reconnect() {
     Serial.print("Attempting MQTT connection .... ");
     if (mqtt.connect(DEVICEID, MQTTUSER, MQTTPASS)) {
       Serial.println(" CONNECTED");
-      digitalWrite(LED_BUILTIN, HIGH);
+      digitalWrite(mqttLEDPin, HIGH);
     }else{
       Serial.print(" FAILED to connect to MQTT broker, rc=");
       Serial.print(mqtt.state());
       Serial.println("try again in 5 second");
-      digitalWrite(LED_BUILTIN, LOW);
+      digitalWrite(mqttLEDPin, LOW);
       delay(5000);
     }
   }
@@ -68,16 +72,16 @@ void reconnect() {
 
 void runMotor(){
   int sensorValue = analogRead(potPIN);
-  int timeToRun = sensorValue * 10;
+  int timeToRun = 1000;//sensorValue * 10;
 
-  digitalWrite(2, HIGH);
+  digitalWrite(powerLEDPin, LOW);
   Serial.print("motorRun - ");
   Serial.print(timeToRun);
   Serial.println("ms");
   digitalWrite(relayPin, LOW);
   delay(timeToRun);
   digitalWrite(relayPin, HIGH);
-  digitalWrite(2, LOW);
+  digitalWrite(powerLEDPin, HIGH);
 }
 
 void setup() {
@@ -87,22 +91,27 @@ void setup() {
   Serial.println("---------------");
   Serial.println(" Cat Feeder V2 ");
   Serial.println("---------------");
-  setup_wifi();
-  setup_mqtt();
   //init pin mode
   pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(powerLEDPin, OUTPUT);
+  pinMode(mqttLEDPin, OUTPUT);
+  pinMode(wifiLEDPin, OUTPUT);
+
+  digitalWrite(powerLEDPin, HIGH);
   pinMode(relayPin, OUTPUT);
   digitalWrite(relayPin, LOW);
-  pinMode(buttonPin, INPUT_PULLUP);   
+  pinMode(buttonPin, INPUT_PULLUP);  
+  setup_wifi();
+  setup_mqtt(); 
 }
 
 void callback(char *topic, byte *payload, unsigned int length) {
   Serial.print("- mqtt msg - ");
   Serial.print(topic);
   Serial.println(" -");
-  if(topic == "cmnd/catfeeder/POWER" /*&& (char) payload == 'ON'*/){
+  //if(topic == "cmnd/catfeeder/POWER" /*&& (char) payload == 'ON'*/){
     runMotor();
-  }
+  //}
 }
 
 void loop() {
